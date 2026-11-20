@@ -1,179 +1,128 @@
-# 🌍 BeenThere
-*Your World. Your Travels. Your Map*
+# BeenThere for Home Assistant
 
-**Keep track of where you've been, and see where everyone else has been too.**
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-BeenThere is an interactive travel map for Home Assistant. Mark the countries and regions you've visited, create maps for everyone in your household, and see which places you've explored together.
+A travel map for [Home Assistant](https://www.home-assistant.io/): mark the countries and regions you have been to, keep a map for everyone in the household, and see where you have been together.
 
-Whether you've visited five countries or fifty, it's a fun way to keep track of your travels.
+> Personal fork of [tampie85/ha-beenthere](https://github.com/tampie85/ha-beenthere), rewritten to run fully offline, follow the Home Assistant theme and use the whole screen. Your data from upstream carries over. See [Differences from upstream](#differences-from-upstream).
 
-<p align="center">
-  <img
-    src="screenshots/hero-world-map.png"
-    alt="BeenThere world map showing visited countries"
-    width="900"
-  >
-</p>
+## Features
 
-[Explore features](#%EF%B8%8F-explore-your-world) · [Get started](#-getting-started) · [User guide](#-how-to-use-beenthere) · [Privacy](#-privacy)
+### Travel map
 
-## 🗺️ Explore your world
+- World map or one continent at a time. Continent views show the surrounding countries for context.
+- The map fills the space it is given without distortion: when the world can't fill the box (a tall phone screen, a desktop window) it zooms in and you drag to pan.
+- Zoom with the buttons, the mouse wheel, a double click or a pinch.
+- Search countries and regions by name. Places too small to draw (Vatican, Monaco, ...) can still be found and marked.
+- Click a place, then **Mark visited**. The list beside (or, on a phone, below) the map shows where you have been; on a phone it collapses to give the map the room.
 
-### 🌍 A map of everywhere you've been
+### Travellers and groups
 
-Select a country on the map, mark it as visited, and watch your map gradually fill up.
+- One map per traveller.
+- Groups combine their members' visits without touching them. Pick a place to see who has been there, or switch between visited by **Any** or **All** members.
 
-Explore the whole world or focus on a single continent. Zoom in for a closer look, move around the map, or search for a particular country.
+### Regions
 
-Your visited destinations are listed alongside the map, making it easy to see where you've been.
+Track states, provinces and nations instead of whole countries in:
 
-### 👨‍👩‍👧 Better together
-
-Everyone has their own travel history.
-
-Add travellers for your family, friends, or anyone else you'd like to include. Each person gets their own map.
-
-Create groups to see your combined travels, find out who's visited a particular country, or discover which places you've all been to.
-
-<p align="center">
-  <img
-    src="screenshots/group-view.png"
-    alt="BeenThere world map showing group view"
-    width="900"
-  >
-</p>
-
-### 📍 It's all in the details
-
-Visited Scotland but not England? California but not New York?
-
-Not every trip needs to count as visiting an entire country.
-
-BeenThere lets you track individual states, provinces and regions in supported countries, including:
-
+- 🇦🇺 Australia
+- 🇨🇦 Canada
+- 🇩🇪 Germany
 - 🇬🇧 United Kingdom
 - 🇺🇸 United States
-- 🇨🇦 Canada
-- 🇦🇺 Australia
-- 🇩🇪 Germany
 
-Regional tracking is optional. Switch it on when you want more detail, and off when you don't. Your visits are remembered either way.
+A visited region counts its country as visited. Turning regional detail off for a country keeps the recorded regions.
 
-<p align="center">
-  <img
-    src="screenshots/regions.png"
-    alt="BeenThere world map showing regions"
-    width="900"
-  >
-</p>
+### Sidebar page and dashboard card
 
-### 🏠 Right at home in Home Assistant
+Use it from its own sidebar page, as a card on any dashboard, or both. The sidebar entry can be switched off.
 
-BeenThere has its own place in your Home Assistant sidebar.
+### Fully local
 
-It's designed for desktop, tablet and mobile, with an interactive map and a straightforward interface.
+Maps, the country catalogue and the code ship with the integration and are cached by the browser. BeenThere makes no requests outside your Home Assistant, needs no account and stores everything in Home Assistant.
 
-Your travel history is stored locally in Home Assistant, without needing another account or a cloud service to save your data.
+## Installation
 
-## 🚀 Getting started
+### HACS (recommended)
 
-### Install with HACS
+1. In HACS, add `https://github.com/leonardpitzu/homeassistant-beenthere` as a **custom repository** with category **Integration**.
+2. Search for **BeenThere** and download it.
+3. Restart Home Assistant.
 
-1. HACS → ⋮ → **Custom repositories** → add `https://github.com/leonardpitzu/homeassistant-beenthere` (type: Integration).
-2. Install **BeenThere** and restart Home Assistant.
-3. **Settings → Devices & services → Add integration → BeenThere**.
+### Manual
 
-Coming from the upstream `tampie85/ha-beenthere`? Remove it in HACS first (keep the integration entry): the domain and storage are the same, so your travellers and visits carry over.
+1. Copy `custom_components/beenthere` into your Home Assistant `custom_components` directory.
+2. Restart Home Assistant.
 
-### Dashboard card (with or without the sidebar entry)
+### Moving over from upstream
 
-BeenThere is also a card, `type: custom:beenthere-card`, available on every dashboard without adding a resource (search for "BeenThere" in the card picker).
+Remove the upstream repository in HACS but keep the integration entry under **Settings → Devices & Services**, then install this one. The domain and the storage are the same, so travellers, groups and visits are kept. If you added `/beenthere/beenthere-card.js` as a dashboard resource by hand, remove it: the card registers itself.
 
-- **Full screen:** put it in a view of type **Panel**. It fills the view like the sidebar page does.
-- **In a sections dashboard:** it fills the grid cell; resize it to taste.
-- **Settings:** administrators get a ⚙️ button on the card to manage travellers, groups and regional detail.
+## Configuration
 
-Don't want the sidebar entry? **Settings → Devices & services → BeenThere → Configure → Show in sidebar** off. (Or hide it just for yourself: long-press the sidebar title.)
+Add the integration from **Settings → Devices & Services → Add Integration → BeenThere**. There is nothing to fill in.
 
-Colours follow your Home Assistant theme; override them with the `--beenthere-visited-color`, `--beenthere-selected-color`, `--beenthere-land-color` and `--beenthere-sea-color` theme variables.
+| Option (**Configure**) | Description |
+|---|---|
+| Show in sidebar | Adds the **BeenThere** page to the sidebar (default on). Off: use it only as a dashboard card. To hide it just for yourself instead, long-press the sidebar title |
 
-### Your first map
+Travellers, groups and regional detail are managed in the map's settings (the ⚙️ button). Administrators can change everything; other users can look but not edit.
 
-Getting started takes just a minute.
+## Dashboard
 
-1. Open **BeenThere** from the sidebar.
-2. Go to **Settings** and add your first traveller.
-3. Select your traveller from the map view.
-4. Click a country you've visited.
-5. Select **Mark visited**.
+The card needs no resource and no options:
 
-That's it. Keep going until your map looks familiar!
+```yaml
+type: custom:beenthere-card
+```
 
-## 📖 How to use BeenThere
+### Full screen
 
-### Travellers
+Put it alone in a view of type **Panel**: it fills the view like the sidebar page.
 
-Each traveller has their own map and travel history.
+```yaml
+views:
+  - title: Travels
+    path: travels
+    type: panel
+    cards:
+      - type: custom:beenthere-card
+```
 
-Use **Settings** to add, rename or remove travellers. Switch between travellers from the main map view.
+### Sections dashboard
 
-### Groups
+The card fills its grid cell; resize the cell to taste. In a masonry view it keeps a 16:10 box.
 
-Create groups in Settings and choose which travellers belong to them.
+### Colours
 
-Group maps combine everyone's visited destinations without changing their individual histories.
+The card follows your theme: visited places use the primary colour, the selected place the accent colour. Override them in a theme with:
 
-Select a country to see which group members have visited it. You can also filter the map to show places visited by any or all selected travellers.
+| Variable | Default |
+|---|---|
+| `--beenthere-visited-color` | `--primary-color` |
+| `--beenthere-selected-color` | `--accent-color` |
+| `--beenthere-land-color` | text colour at 13% over the card background |
+| `--beenthere-sea-color` | visited colour at 5% over the card background |
 
-### Countries and regions
+## Differences from upstream
 
-Click a country or use search to find it. Mark it as visited or unvisited whenever you like.
+| Change | Why |
+|---|---|
+| World map bundled, flags drawn by the system emoji font | Upstream fetched a 3.2 MB map from GitHub on every page load and each flag from flagcdn.com, so nothing worked offline |
+| Theme colours | Upstream hard-coded its own dark palette (61 fixed colours); the card now follows the Home Assistant theme in light and dark |
+| Map fills the screen without distortion | The map was a fixed 2:1 box and the visited list on a phone was squeezed into the same shape |
+| Collapsible visited list on narrow screens | Gives the map the room on a phone |
+| Card fills Panel views and grid cells, settings on the card, sidebar entry optional | The map can live on a dashboard instead of the sidebar |
+| Live updates for non-admin users | Upstream subscribed to a custom event, which Home Assistant only allows administrators to do |
+| Card registered automatically | The registration code existed upstream but was never called |
+| Long browser caching with a content hash in the URL | Files are downloaded again only when they change |
+| Frontend 104 KB → 40 KB, backend 22 KB → 12 KB | Shapes are built once per continent and only recoloured on change; one event handler instead of re-binding dozens per render |
+| One malformed stored visit no longer drops a traveller | Stored data is cleaned entry by entry |
 
-For supported countries, enable regional tracking in Settings to record individual regions.
+## Credits
 
-BeenThere keeps your regional history even when you turn regional tracking off.
+Original integration by [Tamara Williams (@tampie85)](https://github.com/tampie85/ha-beenthere). Map data: [Natural Earth](https://www.naturalearthdata.com/), public domain; see `custom_components/beenthere/frontend/maps/SOURCES.txt`.
 
-### Exploring the map
+## License
 
-BeenThere lets you explore your travels in different ways:
-
-- **World view** - See all your visited countries on one map.
-- **Continent view** - Select Africa, Asia, Europe, North America, South America or Oceania to focus on that part of the world.
-- **Zoom and pan** - Move around the map and take a closer look.
-- **Search** - Quickly find a country by name.
-- **Visited countries** - Browse your visited destinations in the list alongside the map.
-
-To mark a country as visited, select it on the map or find it using search, then choose **Mark visited**.
-
-### Permissions
-
-Home Assistant administrators can manage travellers, groups, settings and visited destinations.
-
-Other authenticated users can explore the maps in read-only mode.
-
-## 🔒 Privacy
-
-Your travel history belongs to you.
-
-BeenThere stores visits locally in Home Assistant. It doesn't track your location, collect GPS data or require a separate account.
-
-Maps ship with the integration and are cached by your browser: BeenThere makes no requests outside your Home Assistant.
-
-All authenticated Home Assistant users can view the travel histories.
-
----
-
-## 💬 Questions, ideas or bugs?
-
-BeenThere is an independent project built for Home Assistant.
-
-Found something that doesn't work? Have an idea for a feature?
-
-- [Report a bug](https://github.com/leonardpitzu/homeassistant-beenthere/issues)
-- [Suggest an improvement](https://github.com/leonardpitzu/homeassistant-beenthere/issues)
-- [View the source code](https://github.com/leonardpitzu/homeassistant-beenthere) · fork of [tampie85/ha-beenthere](https://github.com/tampie85/ha-beenthere)
-
-Contributions and feedback are welcome.
-
-
-**🌍 BeenThere - Where have you been?**
+[MIT](LICENSE), inherited from upstream.

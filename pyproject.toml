@@ -1,8 +1,8 @@
 [project]
 name = "homeassistant-beenthere"
-version = "1.1.0"
-description = "Home Assistant travel map: log the countries and regions you have been to"
-requires-python = ">=3.13"
+version = "1.2.1"
+description = "Home Assistant custom integration: a travel map of the countries and regions you have been to"
+requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -10,11 +10,22 @@ asyncio_mode = "auto"
 pythonpath = ["."]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "B", "I", "UP"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (undefined names, unused imports, syntax issues)
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear (common bug patterns)
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long - leave to formatter / personal preference
+    "W293",  # blank line contains whitespace
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components.beenthere"]

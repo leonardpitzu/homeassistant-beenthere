@@ -42,3 +42,16 @@ Use catalogue identifiers/names, omit source properties, sort by identifier.
 Coordinates remain WGS84. Shapely is an offline derivation tool only, not a
 Home Assistant runtime dependency. Generalized cartographic boundaries are
 not legal or survey boundaries. Crown dependencies are not UK subdivisions.
+
+world.geojson
+Source: Natural Earth, 1:50m Admin 0 - Map Units, version 5.1.2.
+Source URL:
+https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_50m_admin_0_map_units.geojson
+License: Public domain. Attribution: Made with Natural Earth.
+Derivation: country code = ISO_A2_EH, except GU_A3 NJM (Jan Mayen) and NSV
+(Svalbard) = SJ. Units sharing a code are merged into one MultiPolygon; feature
+id = code, properties.name and properties.continent from geography.json.
+Units without a catalogue code (Somaliland, Northern Cyprus, Siachen) form one
+unselectable feature with id null. Coordinates rounded to 0.01 degrees,
+consecutive duplicates dropped, rings under 4 points dropped. No other
+simplification. WGS84 longitude/latitude.

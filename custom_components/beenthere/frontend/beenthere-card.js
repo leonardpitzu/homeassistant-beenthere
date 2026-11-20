@@ -1,4 +1,4 @@
-// BeenThere – travel map card. Also rendered full-height inside the BeenThere panel.
+// BeenThere - travel map card. Also rendered full-height inside the BeenThere panel.
 const BASE = new URL('.', import.meta.url);
 const VERSION = new URL(import.meta.url).search; // ?v=<hash of frontend files>, set by the integration
 const asset = path => new URL(path + VERSION, BASE).href;

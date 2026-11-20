@@ -1,5 +1,6 @@
 """Integration tests: setup, websocket API, persistence, permissions."""
 
+from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.beenthere import DOMAIN
@@ -51,7 +52,7 @@ async def test_loads_upstream_v1_storage(hass, hass_storage):
         "data": {"travellers": {"t": {"name": "Old", "countries": ["FR"]}}, "groups": {}},
     }
     await _setup(hass)
-    data = hass.data[DOMAIN]["data"]
+    data = hass.config_entries.async_entries(DOMAIN)[0].runtime_data.data
     assert data["travellers"]["t"]["countries"] == ["FR"]
     assert data["map_settings"]["subdivision_countries"] == ["GB"]
 
@@ -59,7 +60,7 @@ async def test_loads_upstream_v1_storage(hass, hass_storage):
 async def test_unload(hass):
     entry = await _setup(hass)
     assert await hass.config_entries.async_unload(entry.entry_id)
-    assert DOMAIN not in hass.data
+    assert entry.state is ConfigEntryState.NOT_LOADED
 
 
 async def test_frontend_urls_are_versioned(hass, fake_frontend):
@@ -80,4 +81,4 @@ async def test_sidebar_option(hass, fake_frontend):
     assert entry.options == {"sidebar": False}
     # Reloaded without the panel; the card and websocket API stay available.
     assert fake_frontend["panel"].call_count == 1
-    assert DOMAIN in hass.data
+    assert entry.state is ConfigEntryState.LOADED

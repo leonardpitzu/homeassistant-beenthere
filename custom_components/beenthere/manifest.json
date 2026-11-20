@@ -2,7 +2,6 @@
   "domain": "beenthere",
   "name": "BeenThere",
   "codeowners": [
-    "@tampie85",
     "@leonardpitzu"
   ],
   "config_flow": true,
@@ -13,9 +12,9 @@
     "websocket_api"
   ],
   "documentation": "https://github.com/leonardpitzu/homeassistant-beenthere",
-  "iot_class": "local_push",
+  "iot_class": "calculated",
   "issue_tracker": "https://github.com/leonardpitzu/homeassistant-beenthere/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.2.0"
+  "version": "1.2.1"
 }

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import hashlib
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.storage import Store
@@ -27,6 +28,15 @@ CONF_SIDEBAR = "sidebar"
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
+@dataclass
+class BeenThereData:
+    store: Store
+    data: dict[str, Any]
+
+
+type BeenThereConfigEntry = ConfigEntry[BeenThereData]
+
+
 class _Store(Store):
     async def _async_migrate_func(self, old_major, old_minor, old_data):
         return old_data  # v1 -> v2 only added map_settings; normalize() fills it in
@@ -41,13 +51,22 @@ def _frontend_version() -> str:
     return digest.hexdigest()[:10]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+def _runtime(hass: HomeAssistant) -> BeenThereData | None:
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is ConfigEntryState.LOADED:
+            return entry.runtime_data
+    return None
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: BeenThereConfigEntry) -> bool:
     await hass.async_add_executor_job(catalogue)  # warm the cache off the event loop
     store = _Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True, atomic_writes=True)
-    hass.data[DOMAIN] = {"store": store, "data": normalize(await store.async_load())}
+    entry.runtime_data = BeenThereData(store, normalize(await store.async_load()))
 
-    if not hass.data.get(f"{DOMAIN}_static"):
-        hass.data[f"{DOMAIN}_static"] = version = await hass.async_add_executor_job(_frontend_version)
+    # Static paths and websocket commands live for the whole HA run (they can't be re-registered);
+    # hass.data[DOMAIN] only holds the frontend version hash.
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = version = await hass.async_add_executor_job(_frontend_version)
         await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), True)])
         frontend.add_extra_js_url(hass, f"{STATIC_URL}/beenthere-card.js?v={version}")
         websocket_api.async_register_command(hass, ws_subscribe)
@@ -60,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def _reload(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _reload(hass: HomeAssistant, entry: BeenThereConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
@@ -71,15 +90,14 @@ async def _register_panel(hass: HomeAssistant) -> None:
         frontend_url_path=DOMAIN,
         sidebar_title="BeenThere",
         sidebar_icon="mdi:map-marker-check",
-        module_url=f"{STATIC_URL}/beenthere-panel.js?v={hass.data[f'{DOMAIN}_static']}",
+        module_url=f"{STATIC_URL}/beenthere-panel.js?v={hass.data[DOMAIN]}",
         embed_iframe=False,
         require_admin=False,
     )
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: BeenThereConfigEntry) -> bool:
     frontend.async_remove_panel(hass, DOMAIN, warn_if_unknown=False)
-    hass.data.pop(DOMAIN, None)
     return True
 
 
@@ -87,14 +105,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 @callback
 def ws_subscribe(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Send the data now and again after every change (works for non-admin users too)."""
-    if DOMAIN not in hass.data:
+    if _runtime(hass) is None:
         connection.send_error(msg["id"], "not_loaded", "BeenThere is not loaded.")
         return
 
     @callback
     def send(_event=None) -> None:
-        if DOMAIN in hass.data:
-            connection.send_message(websocket_api.event_message(msg["id"], hass.data[DOMAIN]["data"]))
+        if runtime := _runtime(hass):
+            connection.send_message(websocket_api.event_message(msg["id"], runtime.data))
 
     connection.subscriptions[msg["id"]] = hass.bus.async_listen(UPDATED_EVENT, send)
     connection.send_result(msg["id"])
@@ -117,16 +135,16 @@ def ws_subscribe(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_change(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
-    if (runtime := hass.data.get(DOMAIN)) is None:
+    if (runtime := _runtime(hass)) is None:
         connection.send_error(msg["id"], "not_loaded", "BeenThere is not loaded.")
         return
-    data = deepcopy(runtime["data"])
+    data = deepcopy(runtime.data)
     try:
         apply_change(data, msg)
     except ValueError as err:
         connection.send_error(msg["id"], "invalid_request", str(err))
         return
-    runtime["data"] = data  # in memory first: concurrent changes build on each other
-    await runtime["store"].async_save(data)
+    runtime.data = data  # in memory first: concurrent changes build on each other
+    await runtime.store.async_save(data)
     hass.bus.async_fire(UPDATED_EVENT)
     connection.send_result(msg["id"], data)
