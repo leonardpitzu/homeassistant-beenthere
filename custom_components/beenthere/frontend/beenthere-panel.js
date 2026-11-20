@@ -6,10 +6,11 @@ class BeenTherePanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({mode: 'open'}).innerHTML = `<style>
-      :host { display: block; min-height: 100%; background: var(--primary-background-color); }
+      :host { display: flex; flex-direction: column; height: 100dvh; background: var(--primary-background-color); }
+      beenthere-card { flex: 1; min-height: 0; }
       .toolbar { display: flex; align-items: center; gap: 4px; height: var(--header-height, 56px); padding: 0 12px 0 4px;
         background: var(--app-header-background-color); color: var(--app-header-text-color, var(--text-primary-color));
-        border-bottom: var(--app-header-border-bottom, none); font-size: 20px; position: sticky; top: 0; z-index: 4; }
+        border-bottom: var(--app-header-border-bottom, none); font-size: 20px; flex: none; }
       .title { flex: 1; margin-left: 20px; }
       ha-menu-button + .title { margin-left: 4px; }
       button { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 0; border-radius: 20px;

@@ -50,7 +50,8 @@ class BeenThereCard extends HTMLElement {
     this.selected = null;
     this.expanded = new Set();
     this.settingsOpen = false;
-    this.zoom = 1; this.panX = 0; this.panY = 0;
+    this.zoom = 1;
+    this.listCollapsed = store.get('list') === 'collapsed';
     this.regional = {};
   }
 
@@ -147,14 +148,14 @@ class BeenThereCard extends HTMLElement {
             <div class="seg" id="mode" role="group" aria-label="Visited by" hidden><button data-mode="any" title="Visited by anyone selected">Any</button><button data-mode="all" title="Visited by everyone selected">All</button></div>
             <select id="continent" aria-label="Continent">${['World', ...CONTINENTS].map(c => `<option value="${c}">${c === 'World' ? 'World' : c}</option>`).join('')}</select>
           </div>
-          <div id="result"></div>
           <div class="body">
             <div class="map">
               <svg id="svg" preserveAspectRatio="xMidYMid meet" tabindex="0" aria-label="Map"><g id="shapes"></g></svg>
               <div class="zoom"><button data-zoom="in" title="Zoom in">${icon('plus')}</button><button data-zoom="out" title="Zoom out">${icon('minus')}</button><button data-zoom="reset" title="Reset view">${icon('fit-to-screen-outline')}</button></div>
               <p class="loading">Loading map…</p>
+              <div id="result"></div>
             </div>
-            <aside class="side"><h3 id="count"></h3><ul id="list"></ul></aside>
+            <aside class="side"><button class="side-head" data-act="toggle-list"><span id="count"></span>${icon('chevron-down')}</button><ul id="list"></ul></aside>
           </div>
           <p id="error" class="error" hidden></p>
         </section>
@@ -169,6 +170,7 @@ class BeenThereCard extends HTMLElement {
     $('#q').onblur = () => setTimeout(() => { $('#suggest').hidden = true; }, 150);
     $('#q').onkeydown = e => this.onSearchKey(e);
     this.bindMap($('#svg'));
+    new ResizeObserver(() => this.applyView()).observe($('.map'));
     Promise.all([load('geography.json'), load('maps/world.geojson')]).then(([catalogue, world]) => {
       this.catalogue = catalogue;
       this.countryNames = new Map();
@@ -208,6 +210,8 @@ class BeenThereCard extends HTMLElement {
     $('#mode').hidden = !group;
     if (!group) this.mode = 'any';
     $('#mode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === this.mode));
+    $('.body').classList.toggle('collapsed', this.listCollapsed);
+    $('.side-head ha-icon').setAttribute('icon', `mdi:chevron-${this.listCollapsed ? 'up' : 'down'}`);
 
     const explicit = this.explicit();
     const effective = this.effective(explicit);
@@ -252,10 +256,11 @@ class BeenThereCard extends HTMLElement {
         `land${f.id ? '' : ' none'}${shown.includes(f.id) ? ' detailed' : ''}`)).join('') +
       shown.flatMap(c => this.regional[c].features.map(f =>
         shape(f.properties.id, f.properties.name, f.geometry, 'land region'))).join('');
-    this.base = [w * kx, -n, (e - w) * kx, n - s];
-    this.$('.map').style.setProperty('--ratio', Math.min(2.4, Math.max(0.9, this.base[2] / this.base[3])));
-    this.zoom = 1; this.panX = 0; this.panY = 0;
-    this.applyView();
+    // The continent's frame, and the whole world around it (the limit for padding and panning).
+    const south = Math.min(s, -58), north = Math.max(n, 84);
+    this.frame = {x: w * kx, y: -n, w: (e - w) * kx, h: n - s};
+    this.extent = {x: (center - 180) * kx, y: -north, w: 360 * kx, h: north - south};
+    this.home();
   }
 
   loadRegional(code) {
@@ -371,7 +376,7 @@ class BeenThereCard extends HTMLElement {
     const d = el.dataset;
     if (d.code) { if (!this.dragged) this.select(d.code); return; }
     if (d.mode) { this.mode = d.mode; this.update(); }
-    else if (d.zoom) this.setZoom(d.zoom === 'in' ? this.zoom * 2 : d.zoom === 'out' ? this.zoom / 2 : 1, null, d.zoom === 'reset');
+    else if (d.zoom) d.zoom === 'reset' ? this.home() : this.setZoom(this.zoom * (d.zoom === 'in' ? 2 : 0.5));
     else if (d.select) this.select(d.select);
     else if (d.expand) { this.expanded.has(d.expand) ? this.expanded.delete(d.expand) : this.expanded.add(d.expand); this.update(); }
     else if (d.remove) {
@@ -385,6 +390,11 @@ class BeenThereCard extends HTMLElement {
       const msg = k === 't' ? `Delete ${name} and all their visits?` : `Delete group ${name}? Members keep their visits.`;
       if (confirm(msg)) this.change(k === 't' ? 'delete_traveller' : 'delete_group', {target_id: id});
     } else if (d.act === 'deselect') { this.selected = null; this.update(); }
+    else if (d.act === 'toggle-list') {
+      this.listCollapsed = !this.listCollapsed;
+      store.set('list', this.listCollapsed ? 'collapsed' : 'open');
+      this.update();
+    }
     else if (d.act === 'toggle-visit') {
       this.change('set_visit', {target_id: this.traveller(), location: this.selected, visited: !this.explicit().has(this.selected)});
     }
@@ -456,27 +466,42 @@ class BeenThereCard extends HTMLElement {
   }
 
   // ---------- zoom & pan ----------
+  home() {
+    if (!this.frame) return;
+    this.zoom = 1;
+    this.cx = this.frame.x + this.frame.w / 2;
+    this.cy = this.frame.y + this.frame.h / 2;
+    this.applyView();
+  }
+  // Fit the frame to the map box without distortion: a roomier box shows the surrounding
+  // geography; a box the world can't fill (e.g. tall) is filled by zooming in, pannable.
   applyView() {
-    if (!this.base) return;
-    const [x, y, w, h] = this.base;
-    const vw = w / this.zoom, vh = h / this.zoom;
-    const mx = (w - vw) / 2, my = (h - vh) / 2;
-    this.panX = Math.max(-mx, Math.min(mx, this.panX));
-    this.panY = Math.max(-my, Math.min(my, this.panY));
-    this.$('#svg').setAttribute('viewBox', `${x + mx + this.panX} ${y + my + this.panY} ${vw} ${vh}`);
-    this.$('#svg').classList.toggle('zoomed', this.zoom > 1);
+    const svg = this.$('#svg'), f = this.frame, ext = this.extent;
+    if (!f || !svg.clientWidth || !svg.clientHeight) return;
+    const r = svg.clientWidth / svg.clientHeight;
+    let w = f.w, h = f.h;
+    if (w / h > r) h = w / r; else w = h * r;
+    if (h > ext.h) { h = ext.h; w = h * r; }
+    if (w > ext.w) { w = ext.w; h = w / r; }
+    w /= this.zoom; h /= this.zoom;
+    const clamp = (c, size, lo, span) => size >= span ? lo + span / 2 : Math.max(lo + size / 2, Math.min(lo + span - size / 2, c));
+    this.cx = clamp(this.cx, w, ext.x, ext.w);
+    this.cy = clamp(this.cy, h, ext.y, ext.h);
+    this.viewWidth = w;
+    svg.setAttribute('viewBox', `${this.cx - w / 2} ${this.cy - h / 2} ${w} ${h}`);
+    svg.classList.toggle('pannable', w < ext.w - 0.01 || h < ext.h - 0.01);
+    svg.classList.toggle('zoomed', this.zoom > 1);
   }
   // Zoom keeping the map point under `at` (client coords) in place.
-  setZoom(zoom, at = null, reset = false) {
+  setZoom(zoom, at = null) {
     const svg = this.$('#svg');
     const toMap = p => new DOMPoint(p.x, p.y).matrixTransform(svg.getScreenCTM().inverse());
     const before = at && toMap(at);
     this.zoom = Math.max(1, Math.min(MAX_ZOOM, zoom));
-    if (reset) { this.panX = 0; this.panY = 0; }
     this.applyView();
     if (before) {
       const after = toMap(at);
-      this.panX += before.x - after.x; this.panY += before.y - after.y;
+      this.cx += before.x - after.x; this.cy += before.y - after.y;
       this.applyView();
     }
   }
@@ -502,12 +527,12 @@ class BeenThereCard extends HTMLElement {
         const mid = {x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2};
         if (last) this.setZoom(this.zoom * dist / last, mid);
         last = dist; this.dragged = true;
-      } else if (this.zoom > 1 && (this.dragged || Math.hypot(e.clientX - prev.x, e.clientY - prev.y) > 3)) {
+      } else if (svg.classList.contains('pannable') && (this.dragged || Math.hypot(e.clientX - prev.x, e.clientY - prev.y) > 3)) {
         if (!this.dragged) svg.setPointerCapture(e.pointerId);
         this.dragged = true;
-        const scale = this.base[2] / this.zoom / svg.clientWidth;
-        this.panX -= (e.clientX - prev.x) * scale;
-        this.panY -= (e.clientY - prev.y) * scale;
+        const scale = this.viewWidth / svg.clientWidth;
+        this.cx -= (e.clientX - prev.x) * scale;
+        this.cy -= (e.clientY - prev.y) * scale;
         this.applyView();
       }
     };
@@ -531,8 +556,11 @@ const STYLE = `
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-.root { padding: 16px; display: block; }
-:host([panel]) .root { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 16px 24px 24px; }
+.root { padding: 16px; display: flex; flex-direction: column; }
+:host([panel]) { height: 100%; }
+:host([panel]) .root { height: 100%; background: none; border: 0; box-shadow: none; border-radius: 0; padding: 16px 24px 24px; }
+.main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.settings { flex: 1; min-height: 0; overflow: auto; }
 h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 500; }
 small { display: block; color: var(--bt-muted); font-size: .8rem; }
 .flag { font-size: 1.2em; line-height: 1; width: 1.4em; text-align: center; flex: none; }
@@ -562,16 +590,19 @@ input, select { font: inherit; color: var(--bt-text); background: var(--bt-bg); 
 .seg button { border-radius: 0; padding: 0 14px; color: var(--bt-muted); }
 .seg button.on { background: var(--bt-accent); color: var(--text-primary-color, #fff); }
 
-.result { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 8px 8px 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--bt-selected) 10%, var(--bt-bg)); border-left: 3px solid var(--bt-selected); }
+#result { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; pointer-events: none; }
+.result { pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: 560px; padding: 8px 8px 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--bt-selected) 10%, var(--bt-bg)); border-left: 3px solid var(--bt-selected); box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,.25)); }
 .result .flag { font-size: 1.6em; }
 .result .info { flex: 1; min-width: 0; }
 .result strong { font-weight: 500; }
 
-.body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; margin-top: 12px; }
-.map { position: relative; aspect-ratio: var(--ratio, 2); max-height: 70vh; width: 100%; border-radius: 8px; background: var(--bt-sea); overflow: hidden; }
-:host([panel]) .map { max-height: calc(100dvh - var(--header-height, 56px) - 120px); min-height: 280px; }
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
+/* Card on a dashboard: a fixed box. Panel: fill the screen. The view is fitted to whatever box results. */
+.map { position: relative; aspect-ratio: 16 / 10; max-height: 70vh; width: 100%; border-radius: 8px; background: var(--bt-sea); overflow: hidden; }
+:host([panel]) .map { aspect-ratio: auto; max-height: none; height: 100%; min-height: 240px; }
 svg { display: block; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-svg.zoomed { cursor: grab; touch-action: none; }
+svg.pannable { cursor: grab; }
+svg.zoomed, :host([panel]) svg { touch-action: none; }
 .land { fill: var(--bt-land); stroke: var(--bt-sea); stroke-width: .6px; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .15s; }
 .land:hover { fill: color-mix(in srgb, var(--bt-accent) 35%, var(--bt-land)); }
 .land.none { cursor: default; pointer-events: none; }
@@ -584,8 +615,9 @@ svg.zoomed { cursor: grab; touch-action: none; }
 .zoom button { width: 36px; height: 36px; justify-content: center; border-radius: 0; }
 .loading { position: absolute; inset: 0; margin: 0; display: grid; place-items: center; color: var(--bt-muted); }
 
-.side { contain: size; overflow: auto; display: flex; flex-direction: column; border: 1px solid var(--bt-line); border-radius: 8px; padding: 12px 0 4px; }
-.side h3 { padding: 0 12px; color: var(--bt-muted); font-size: .875rem; }
+.side { contain: size; overflow: auto; display: flex; flex-direction: column; border: 1px solid var(--bt-line); border-radius: 8px; padding: 0 0 4px; }
+.side-head { flex: none; justify-content: space-between; padding: 12px; color: var(--bt-muted); font-size: .875rem; font-weight: 500; border-radius: 0; pointer-events: none; position: sticky; top: 0; background: var(--bt-bg); z-index: 1; }
+.side-head ha-icon { display: none; }
 #list, #list ul { list-style: none; margin: 0; padding: 0; }
 #list ul { padding-left: 36px; }
 #list li.current > .row, #list ul li.current { background: color-mix(in srgb, var(--bt-selected) 12%, transparent); }
@@ -611,10 +643,15 @@ fieldset { border: 1px solid var(--bt-line); border-radius: 8px; max-height: 40v
 
 @container (width < 700px) {
   .root, :host([panel]) .root { padding: 12px; }
-  .body { grid-template-columns: 1fr; }
-  .side { contain: none; max-height: none; }
+  .body { display: flex; flex-direction: column; gap: 8px; }
+  .side { contain: none; flex: none; }
+  :host([panel]) .side { max-height: 45%; }
+  .side-head { pointer-events: auto; }
+  .side-head ha-icon { display: inline-flex; }
+  .body.collapsed #list { display: none; }
   #view, #continent { flex: 1 1 140px; }
-  .map, :host([panel]) .map { max-height: none; min-height: 0; margin: 0 -12px; width: calc(100% + 24px); border-radius: 0; }
+  .map { aspect-ratio: 1; max-height: none; margin: 0 -12px; width: calc(100% + 24px); border-radius: 0; }
+  :host([panel]) .map { aspect-ratio: auto; height: auto; flex: 1 1 0; min-height: 200px; }
   .result button.primary { padding: 8px 10px; }
 }
 `;
