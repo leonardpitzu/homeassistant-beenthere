@@ -1,6 +1,5 @@
-
 {
   "name": "BeenThere",
-  "content_in_root": true,
+  "homeassistant": "2024.7.0",
   "render_readme": true
 }

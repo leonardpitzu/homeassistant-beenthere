@@ -1,6 +1,0 @@
-{
-  "config": {
-    "step": {"user": {"title": "BeenThere", "description": "Set up the interactive travel map. Manage travellers and groups directly in the BeenThere panel."}},
-    "abort": {"single_instance_allowed": "BeenThere is already configured."}
-  }
-}

@@ -15,7 +15,7 @@ Whether you've visited five countries or fifty, it's a fun way to keep track of 
   >
 </p>
 
-[Explore features](#%EF%B8%8F-explore-your-world) · [Get started](#-getting-started) · [User guide](#-how-to-use-beenthere) · [Privacy](#-privacy) · [For developers](docs/development.md)
+[Explore features](#%EF%B8%8F-explore-your-world) · [Get started](#-getting-started) · [User guide](#-how-to-use-beenthere) · [Privacy](#-privacy)
 
 ## 🗺️ Explore your world
 
@@ -77,14 +77,17 @@ Your travel history is stored locally in Home Assistant, without needing another
 
 ## 🚀 Getting started
 
-### Install with Marketplace
+### Install with HACS
 
-1. Open **Marketplace** in Home Assistant.
-2. Click "Add from link"
-3. Enter `https://github.com/tampie85/ha-beenthere`
-4. Restart Home Assistant.
-6. Go to **Settings → Devices & services → Add integration**.
-7. Search for **BeenThere** and complete setup.
+1. HACS → ⋮ → **Custom repositories** → add `https://github.com/leonardpitzu/homeassistant-beenthere` (type: Integration).
+2. Install **BeenThere** and restart Home Assistant.
+3. **Settings → Devices & services → Add integration → BeenThere**.
+
+Coming from the upstream `tampie85/ha-beenthere`? Remove it in HACS first (keep the integration entry): the domain and storage are the same, so your travellers and visits carry over.
+
+### Dashboard card
+
+The integration also registers a `custom:beenthere-card` card you can put on any dashboard. Colours follow your Home Assistant theme; override them with the `--beenthere-visited-color`, `--beenthere-selected-color`, `--beenthere-land-color` and `--beenthere-sea-color` theme variables.
 
 ### Your first map
 
@@ -146,7 +149,7 @@ Your travel history belongs to you.
 
 BeenThere stores visits locally in Home Assistant. It doesn't track your location, collect GPS data or require a separate account.
 
-Country boundaries and flags are loaded from external services, but your saved travel history isn't shared with them.
+Maps ship with the integration and are cached by your browser: BeenThere makes no requests outside your Home Assistant.
 
 All authenticated Home Assistant users can view the travel histories.
 
@@ -158,17 +161,11 @@ BeenThere is an independent project built for Home Assistant.
 
 Found something that doesn't work? Have an idea for a feature?
 
-- [Report a bug](https://github.com/tampie85/ha-beenthere/issues)
-- [Suggest an improvement](https://github.com/tampie85/ha-beenthere/issues)
-- [View the source code](https://github.com/tampie85/ha-beenthere)
+- [Report a bug](https://github.com/leonardpitzu/homeassistant-beenthere/issues)
+- [Suggest an improvement](https://github.com/leonardpitzu/homeassistant-beenthere/issues)
+- [View the source code](https://github.com/leonardpitzu/homeassistant-beenthere) · fork of [tampie85/ha-beenthere](https://github.com/tampie85/ha-beenthere)
 
 Contributions and feedback are welcome.
 
-
-## 🛠️ For developers
-
-Interested in how BeenThere works or want to contribute?
-
-See the [Developer Documentation](docs/DEVELOPMENT.md) for architecture, development setup, testing and implementation details.
 
 **🌍 BeenThere - Where have you been?**

@@ -1,0 +1,10 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BeenThere",
+        "description": "Adds the BeenThere travel map to the sidebar. Manage travellers and groups from the panel."
+      }
+    }
+  }
+}
