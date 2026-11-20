@@ -22,6 +22,7 @@ STATIC_URL = f"/{DOMAIN}/static"
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 STORAGE_VERSION = 2
 UPDATED_EVENT = f"{DOMAIN}_updated"
+CONF_SIDEBAR = "sidebar"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -52,6 +53,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websocket_api.async_register_command(hass, ws_subscribe)
         websocket_api.async_register_command(hass, ws_change)
 
+    # The card works on any dashboard either way; the sidebar entry is optional.
+    if entry.options.get(CONF_SIDEBAR, True):
+        await _register_panel(hass)
+    entry.async_on_unload(entry.add_update_listener(_reload))
+    return True
+
+
+async def _reload(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _register_panel(hass: HomeAssistant) -> None:
     await panel_custom.async_register_panel(
         hass,
         webcomponent_name="beenthere-panel",
@@ -62,11 +75,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         embed_iframe=False,
         require_admin=False,
     )
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    frontend.async_remove_panel(hass, DOMAIN)
+    frontend.async_remove_panel(hass, DOMAIN, warn_if_unknown=False)
     hass.data.pop(DOMAIN, None)
     return True
 

@@ -67,3 +67,17 @@ async def test_frontend_urls_are_versioned(hass, fake_frontend):
     url = fake_frontend["panel"].call_args.kwargs["module_url"]
     assert url.startswith("/beenthere/static/beenthere-panel.js?v=") and len(url.split("v=")[1]) == 10
     assert fake_frontend["extra_js"].call_args.args[1].endswith(url.split("?")[1])
+
+
+async def test_sidebar_option(hass, fake_frontend):
+    entry = await _setup(hass)
+    assert fake_frontend["panel"].call_count == 1
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"sidebar": False})
+    await hass.async_block_till_done()
+    assert entry.options == {"sidebar": False}
+    # Reloaded without the panel; the card and websocket API stay available.
+    assert fake_frontend["panel"].call_count == 1
+    assert DOMAIN in hass.data

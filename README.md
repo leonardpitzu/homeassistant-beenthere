@@ -85,9 +85,17 @@ Your travel history is stored locally in Home Assistant, without needing another
 
 Coming from the upstream `tampie85/ha-beenthere`? Remove it in HACS first (keep the integration entry): the domain and storage are the same, so your travellers and visits carry over.
 
-### Dashboard card
+### Dashboard card (with or without the sidebar entry)
 
-The integration also registers a `custom:beenthere-card` card you can put on any dashboard. Colours follow your Home Assistant theme; override them with the `--beenthere-visited-color`, `--beenthere-selected-color`, `--beenthere-land-color` and `--beenthere-sea-color` theme variables.
+BeenThere is also a card, `type: custom:beenthere-card`, available on every dashboard without adding a resource (search for "BeenThere" in the card picker).
+
+- **Full screen:** put it in a view of type **Panel**. It fills the view like the sidebar page does.
+- **In a sections dashboard:** it fills the grid cell; resize it to taste.
+- **Settings:** administrators get a ⚙️ button on the card to manage travellers, groups and regional detail.
+
+Don't want the sidebar entry? **Settings → Devices & services → BeenThere → Configure → Show in sidebar** off. (Or hide it just for yourself: long-press the sidebar title.)
+
+Colours follow your Home Assistant theme; override them with the `--beenthere-visited-color`, `--beenthere-selected-color`, `--beenthere-land-color` and `--beenthere-sea-color` theme variables.
 
 ### Your first map
 

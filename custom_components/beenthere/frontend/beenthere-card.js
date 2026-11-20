@@ -60,6 +60,12 @@ class BeenThereCard extends HTMLElement {
   getCardSize() { return 8; }
   getGridOptions() { return {columns: 12, min_columns: 6, rows: 8}; }
   static getStubConfig() { return {}; }
+  set layout(layout) { this._layout = layout; this.sizing(); }
+  // fill: take the height we are given (our panel, a panel view, a sections grid cell).
+  sizing() {
+    this.toggleAttribute('panel', !!this.panel);
+    this.toggleAttribute('fill', !!this.panel || ['panel', 'grid'].includes(this._layout));
+  }
 
   set hass(hass) {
     const wasAdmin = this.canEdit();
@@ -147,6 +153,7 @@ class BeenThereCard extends HTMLElement {
             <select id="view" aria-label="Traveller or group"></select>
             <div class="seg" id="mode" role="group" aria-label="Visited by" hidden><button data-mode="any" title="Visited by anyone selected">Any</button><button data-mode="all" title="Visited by everyone selected">All</button></div>
             <select id="continent" aria-label="Continent">${['World', ...CONTINENTS].map(c => `<option value="${c}">${c === 'World' ? 'World' : c}</option>`).join('')}</select>
+            <button class="icon" id="cog" data-act="settings" title="Settings" hidden>${icon('cog')}</button>
           </div>
           <div class="body">
             <div class="map">
@@ -191,7 +198,7 @@ class BeenThereCard extends HTMLElement {
     if (!this.$) return;
     const $ = this.$;
     const ready = !!(this.world && this.data);
-    this.toggleAttribute('panel', !!this.panel);
+    this.sizing();
     $('.settings').hidden = !(this.settingsOpen && this.canEdit());
     $('.main').hidden = !$('.settings').hidden;
     $('#error').hidden = !this.error;
@@ -210,6 +217,7 @@ class BeenThereCard extends HTMLElement {
     $('#mode').hidden = !group;
     if (!group) this.mode = 'any';
     $('#mode').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === this.mode));
+    $('#cog').hidden = !!this.panel || !this.canEdit();
     $('.body').classList.toggle('collapsed', this.listCollapsed);
     $('.side-head ha-icon').setAttribute('icon', `mdi:chevron-${this.listCollapsed ? 'up' : 'down'}`);
 
@@ -329,6 +337,7 @@ class BeenThereCard extends HTMLElement {
     const detail = (this.catalogue.subdivision_countries || []).map(c => [c, this.nameOf(c)])
       .sort((a, b) => a[1].localeCompare(b[1]));
     this.$('.settings').innerHTML = `
+      ${this.panel ? '' : `<div class="settings-head"><h3>Settings</h3><button class="primary outline" data-act="settings">${icon('map-outline')}Back to map</button></div>`}
       <div class="panel-grid">
         <div class="block"><h3>Travellers</h3><ul class="items">${Object.entries(this.travellers).map(([id, t]) => item('t', id, t.name, `${t.countries.length} places`)).join('') || '<li class="empty">No travellers yet.</li>'}</ul>
           <button class="primary" data-edit="t:" ${disabled}>${icon('plus')}Add traveller</button></div>
@@ -390,6 +399,7 @@ class BeenThereCard extends HTMLElement {
       const msg = k === 't' ? `Delete ${name} and all their visits?` : `Delete group ${name}? Members keep their visits.`;
       if (confirm(msg)) this.change(k === 't' ? 'delete_traveller' : 'delete_group', {target_id: id});
     } else if (d.act === 'deselect') { this.selected = null; this.update(); }
+    else if (d.act === 'settings') this.toggleSettings();
     else if (d.act === 'toggle-list') {
       this.listCollapsed = !this.listCollapsed;
       store.set('list', this.listCollapsed ? 'collapsed' : 'open');
@@ -557,8 +567,10 @@ const STYLE = `
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 .root { padding: 16px; display: flex; flex-direction: column; }
-:host([panel]) { height: 100%; }
-:host([panel]) .root { height: 100%; background: none; border: 0; box-shadow: none; border-radius: 0; padding: 16px 24px 24px; }
+:host([fill]) { height: 100%; }
+:host([fill]) .root { height: 100%; }
+:host([panel]) .root { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 16px 24px 24px; }
+.settings-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .settings { flex: 1; min-height: 0; overflow: auto; }
 h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 500; }
@@ -599,7 +611,7 @@ input, select { font: inherit; color: var(--bt-text); background: var(--bt-bg); 
 .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
 /* Card on a dashboard: a fixed box. Panel: fill the screen. The view is fitted to whatever box results. */
 .map { position: relative; aspect-ratio: 16 / 10; max-height: 70vh; width: 100%; border-radius: 8px; background: var(--bt-sea); overflow: hidden; }
-:host([panel]) .map { aspect-ratio: auto; max-height: none; height: 100%; min-height: 240px; }
+:host([fill]) .map { aspect-ratio: auto; max-height: none; height: 100%; min-height: 160px; }
 svg { display: block; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 svg.pannable { cursor: grab; }
 svg.zoomed, :host([panel]) svg { touch-action: none; }
@@ -645,13 +657,13 @@ fieldset { border: 1px solid var(--bt-line); border-radius: 8px; max-height: 40v
   .root, :host([panel]) .root { padding: 12px; }
   .body { display: flex; flex-direction: column; gap: 8px; }
   .side { contain: none; flex: none; }
-  :host([panel]) .side { max-height: 45%; }
+  :host([fill]) .side { max-height: 45%; }
   .side-head { pointer-events: auto; }
   .side-head ha-icon { display: inline-flex; }
   .body.collapsed #list { display: none; }
   #view, #continent { flex: 1 1 140px; }
   .map { aspect-ratio: 1; max-height: none; margin: 0 -12px; width: calc(100% + 24px); border-radius: 0; }
-  :host([panel]) .map { aspect-ratio: auto; height: auto; flex: 1 1 0; min-height: 200px; }
+  :host([fill]) .map { aspect-ratio: auto; height: auto; flex: 1 1 0; min-height: 160px; }
   .result button.primary { padding: 8px 10px; }
 }
 `;

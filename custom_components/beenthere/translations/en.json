@@ -3,7 +3,20 @@
     "step": {
       "user": {
         "title": "BeenThere",
-        "description": "Adds the BeenThere travel map to the sidebar. Manage travellers and groups from the panel."
+        "description": "Adds the BeenThere travel map. Manage travellers and groups from the map's settings."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BeenThere",
+        "data": {
+          "sidebar": "Show in sidebar"
+        },
+        "data_description": {
+          "sidebar": "Off: use the map only as a dashboard card (type: custom:beenthere-card)."
+        }
       }
     }
   }
