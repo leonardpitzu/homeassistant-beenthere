@@ -217,6 +217,3 @@ __marimo__/
 
 # Agent memory (local only - never publish)
 AGENTS.md
-
-# Claude Code (local only - never publish)
-.claude/
