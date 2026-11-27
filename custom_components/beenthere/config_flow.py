@@ -1,7 +1,7 @@
 """Config flow for BeenThere: one entry (single_config_entry in manifest), one option."""
 
-import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+import probatio as vol
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow, OptionsFlowWithReload
 from homeassistant.core import callback
 
 from . import CONF_SIDEBAR, DOMAIN
@@ -21,7 +21,9 @@ class BeenThereConfigFlow(ConfigFlow, domain=DOMAIN):
         return BeenThereOptionsFlow()
 
 
-class BeenThereOptionsFlow(OptionsFlow):
+class BeenThereOptionsFlow(OptionsFlowWithReload):
+    """Changing the sidebar option reloads the entry, which adds or removes the panel."""
+
     async def async_step_init(self, user_input=None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)

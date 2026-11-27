@@ -1,7 +1,7 @@
 """Integration tests: setup, websocket API, persistence, permissions."""
 
 from homeassistant.config_entries import ConfigEntryState
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.beenthere import DOMAIN
 
@@ -81,4 +81,11 @@ async def test_sidebar_option(hass, fake_frontend):
     assert entry.options == {"sidebar": False}
     # Reloaded without the panel; the card and websocket API stay available.
     assert fake_frontend["panel"].call_count == 1
+    assert entry.state is ConfigEntryState.LOADED
+
+    # Switching it back on reloads the entry again, which registers the panel again.
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(result["flow_id"], {"sidebar": True})
+    await hass.async_block_till_done()
+    assert fake_frontend["panel"].call_count == 2
     assert entry.state is ConfigEntryState.LOADED

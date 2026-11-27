@@ -5,13 +5,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.setup import async_setup_component
 
-pytest_plugins = "pytest_homeassistant_custom_component"
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
-    yield
-
 
 @pytest.fixture(autouse=True)
 async def fake_frontend(hass):

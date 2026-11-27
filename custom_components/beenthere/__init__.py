@@ -8,13 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.util.hass_dict import HassKey
 
 from .data import apply_change, catalogue, normalize
 
@@ -26,6 +28,9 @@ UPDATED_EVENT = f"{DOMAIN}_updated"
 CONF_SIDEBAR = "sidebar"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+# Hash of the bundled frontend, appended to its URLs to bust browser caches.
+DATA_FRONTEND_VERSION: HassKey[str] = HassKey(DOMAIN)
 
 
 @dataclass
@@ -58,29 +63,29 @@ def _runtime(hass: HomeAssistant) -> BeenThereData | None:
     return None
 
 
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register what lives for the whole run: static files, the card script, websocket commands.
+
+    They can't be re-registered, so they belong here rather than in the entry setup,
+    which runs again on every reload.
+    """
+    hass.data[DATA_FRONTEND_VERSION] = version = await hass.async_add_executor_job(_frontend_version)
+    await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), True)])
+    frontend.add_extra_js_url(hass, f"{STATIC_URL}/beenthere-card.js?v={version}")
+    websocket_api.async_register_command(hass, ws_subscribe)
+    websocket_api.async_register_command(hass, ws_change)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: BeenThereConfigEntry) -> bool:
     await hass.async_add_executor_job(catalogue)  # warm the cache off the event loop
     store = _Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True, atomic_writes=True)
     entry.runtime_data = BeenThereData(store, normalize(await store.async_load()))
 
-    # Static paths and websocket commands live for the whole HA run (they can't be re-registered);
-    # hass.data[DOMAIN] only holds the frontend version hash.
-    if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = version = await hass.async_add_executor_job(_frontend_version)
-        await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), True)])
-        frontend.add_extra_js_url(hass, f"{STATIC_URL}/beenthere-card.js?v={version}")
-        websocket_api.async_register_command(hass, ws_subscribe)
-        websocket_api.async_register_command(hass, ws_change)
-
     # The card works on any dashboard either way; the sidebar entry is optional.
     if entry.options.get(CONF_SIDEBAR, True):
         await _register_panel(hass)
-    entry.async_on_unload(entry.add_update_listener(_reload))
     return True
-
-
-async def _reload(hass: HomeAssistant, entry: BeenThereConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def _register_panel(hass: HomeAssistant) -> None:
@@ -90,7 +95,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
         frontend_url_path=DOMAIN,
         sidebar_title="BeenThere",
         sidebar_icon="mdi:map-marker-check",
-        module_url=f"{STATIC_URL}/beenthere-panel.js?v={hass.data[DOMAIN]}",
+        module_url=f"{STATIC_URL}/beenthere-panel.js?v={hass.data[DATA_FRONTEND_VERSION]}",
         embed_iframe=False,
         require_admin=False,
     )
